@@ -1,25 +1,24 @@
 '''
 argvs
-1 : model name
+1 : out_dir
 2 : architecture
-3 : image size
+3 : weights path
 4 : gpu id
 '''
 
 import os
 import sys
-# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[len(sys.argv)-1]
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[len(sys.argv)-1]
 import numpy as np
 import keras
 
 '''parse arguments'''
 
 archi = sys.argv[1]
-
-image_size = 224
+image_size = (240, 320)
 num_class = 2
-# gpu_id = sys.argv[2]
+weigths_path = sys.argv[3]
 
 '''create model'''
 
@@ -57,14 +56,30 @@ else:
 
 adam = keras.optimizers.Adam(lr=0.0001)
 model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['acc'])
-model.load_weights('pretrained/HAM10K/resnet50/checkpoint.hdf5')
+model.load_weights(weigths_path)
 
-# x_train = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/train_img.npy')
-# y_train = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/train_lbl.npy')
-# x_val   = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/val_img.npy')
-# y_val   = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/val_lbl.npy')
-x_test  = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/test_img.npy')
-y_test  = np.load('/home/s1710453/mydata/datasets/ISIC/exp_data/HAM10K_npy/test_lbl.npy')
+''' evaluate '''
 
-pre_y = model.predict_classes(x_test)
-np.save('pre_y_res50', pre_y)
+x_train = np.load('data_npy_5_1_4/train_images.npy')
+y_train = np.load('data_npy_5_1_4/train_labels.npy')
+print model.evaluate(x_train, y_train)
+del x_train
+del y_train
+
+x_val   = np.load('data_npy_5_1_4/val_images.npy')
+y_val   = np.load('data_npy_5_1_4/val_labels.npy')
+print model.evaluate(x_val, y_val)
+
+del x_val
+del y_val
+
+x_test  = np.load('data_npy_5_1_4/test_images.npy')
+y_test  = np.load('data_npy_5_1_4/test_labels.npy')
+print model.evaluate(x_test, y_test)
+del x_test
+del y_test
+
+
+pre = model.predict(x_test)
+np.save(out_dir + '/predictions_test', pre)
+np.save(out_dir + '/labels_test', y_test)
