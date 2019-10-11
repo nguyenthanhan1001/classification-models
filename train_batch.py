@@ -1,9 +1,8 @@
 '''
 argvs
-1 : model name
+1 : out_dir
 2 : architecture
-3 : image size
-4 : gpu id
+3 : gpu id
 '''
 
 import os
@@ -12,19 +11,19 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[len(sys.argv)-1]
 import numpy as np
 import keras
+import datetime
 
 '''parse arguments'''
-
-out_dir = sys.argv[1]
+tag = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+out_dir = tag + '_' + sys.argv[1]
 archi = sys.argv[2]
 
-image_size = 32
+image_size = (240, 320)
 num_class = 2
-# gpu_id = sys.argv[2]
 
 BATCH_SIZE = 32
 EPOCHS = 100195
-EARLY_STOP = 10
+EARLY_STOP = 5
 
 '''create model'''
 
@@ -62,11 +61,11 @@ else:
 
 adam = keras.optimizers.Adam(lr=0.0001)
 model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['acc'])
-#model.load_weights('')
+# model.load_weights('resnext50_pipe97Kpatch_lr0.001/checkpoint.hdf5')
 
 '''check point'''
 
-filepath="%s/checkpoint.hdf5"%(out_dir)
+filepath="%s/checkpoint_{val_acc:.4f}.hdf5"%(out_dir)
 checkpoint = keras.callbacks.ModelCheckpoint(filepath, monitor='val_acc', 
                     verbose=1, save_best_only=True, mode='max')
 
@@ -80,16 +79,9 @@ early_stop_cb =  keras.callbacks.EarlyStopping(monitor='val_acc', mode='max',
 
 log_filename = '%s/log_%s.txt'%(out_dir, out_dir)
 if os.path.exists(out_dir):
-    os.system('rm -rf %s/*'%(out_dir))
+    raise "%s exists"%(out_dir)
 else:
     os.makedirs(out_dir)
-
-'''load data'''
-
-'''train model'''
-
-log_test_acc = []
-log_test_loss = []
 
 # class My_Callback(keras.callbacks.Callback):
 #     def on_epoch_end(self, epoch, logs={}):
@@ -103,38 +95,23 @@ log_test_loss = []
 #         print 'test_loss', test_loss, 'test_acc', test_acc
 #         return
 
-x_train = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus/train_batch.npy')
-y_train = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus/train_labels.npy')
-#x_val   = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus')
-#y_val   = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus')
+# load data
+# Datasets
+partition = np.load('data_meta.npy')
+labels = np.load('labels.npy')
 
-history = model.fit(x=x_train,
-                    y=y_train,
-                    batch_size=BATCH_SIZE,
+# Generators
+training_generator = DataGenerator(partition['train'], labels, **params)
+validation_generator = DataGenerator(partition['validation'], labels, **params)
+
+'''train model'''
+history = model.fit_generator(generator=training_generator,
+                    validation_data=validation_generator,
                     epochs=EPOCHS,
-                    #validation_data=(x_val, y_val),
-                    validation_split=0.1,
+                    use_multiprocessing=True,
                     callbacks=[checkpoint, tbCallback, early_stop_cb],
-                    verbose=1)
-
-del x_train
-del y_train
-#del x_val
-#del y_val
-
-# evaluation
-x_test  = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus/test_batch.npy')
-y_test  = np.load('/home/ntan/mydata/data_pipe/npy_defect_det_1200plus/test_labels.npy')
-
-test_loss, test_acc = model.evaluate(x_test, y_test, verbose=1)
-print ('test_loss', test_loss, 'test_acc', test_acc)
-
-# eval-set
-#x_eval  = np.load('npy_classify_v2/eval_set_img.npy')
-#y_eval  = np.load('npy_classify_v2/eval_set_lbl.npy')
-
-#eval_loss, eval_acc = model.evaluate(x_eval, y_eval, verbose=1)
-#print 'eval_loss', eval_loss, 'eval_acc', eval_acc
+                    verbose=1,
+                    workers=6)
 
 # log
 log_acc = history.history['acc']
@@ -142,53 +119,24 @@ log_val_acc = history.history['val_acc']
 log_loss = history.history['loss']
 log_val_loss = history.history['val_loss']
 
-log_test_acc = [0.] * len(log_acc)
-log_test_loss = [0.] * len(log_acc)
-
 with open(log_filename, 'at') as f:
-        f.write('train_acc\tval_acc\ttest_acc\ttrain_loss\tval_loss\ttest_loss\n')
+        f.write('train_acc\tval_acc\ttrain_loss\tval_loss\n')
         for i in range(len(log_acc)):
-            f.write('%g\t%g\t%g\t%g\t%g\t%g\n'%(log_acc[i], log_val_acc[i], log_test_acc[i],
-                                                log_loss[i], log_val_loss[i], log_test_loss[i]))
+            f.write('%g\t%g\t%g\t%g\n'%(log_acc[i], log_val_acc[i],
+                                        log_loss[i], log_val_loss[i]))
 
-        f.write('acc        : %g at epoch: %d\n'%(max(log_acc), 
-                                        log_acc.index(max(log_acc))))
-        f.write('val_acc    : %g at epoch: %d\n'%(max(log_val_acc),
-                                        log_val_acc.index(max(log_val_acc))))
-        #f.write('test_acc   : %g at epoch: %d\n'%(max(log_test_acc),
-        #                                log_test_acc.index(max(log_test_acc))))
-        f.write('test_acc   : %g\n'%(test_acc))
-        f.write('loss       : %g at epoch: %d\n'%(min(log_loss),
-                                        log_loss.index(min(log_loss))))
-        f.write('val_loss   : %g at epoch: %d\n'%(min(log_val_loss),
-                                        log_val_loss.index(min(log_val_loss))))
-        #f.write('test_loss  : %g at epoch: %d\n'%(min(log_test_loss),
-        #                                log_test_loss.index(min(log_test_loss))))
-        f.write('test_loss  : %g\n'%(test_loss))
-        f.write('#epochs    : %d\n'%(len(log_acc)))
-        
         ind = len(log_acc) - EARLY_STOP - 1
-        f.write('results:\n #epochs: %d\n'%(ind+1))
-        f.write('%g\t%g\t%g\t%g\t%g\t%g\n'%(log_acc[ind], log_val_acc[ind], test_acc,
-                                                log_loss[ind], log_val_loss[ind], test_loss))
-
-        #f.write('eval_loss: %g, eval_acc: %g\n'%(eval_loss, eval_acc))
-
-print('acc          : %g at epoch: %d\n'%(max(log_acc), 
-                                        log_acc.index(max(log_acc))))
-print('val_acc      : %g at epoch: %d\n'%(max(log_val_acc),
-                                log_val_acc.index(max(log_val_acc))))
-print('test_acc     : %g\n'%(test_acc))
-print('loss         : %g at epoch: %d\n'%(min(log_loss),
-                                log_loss.index(min(log_loss))))
-print('val_loss     : %g at epoch: %d\n'%(min(log_val_loss),
-                                log_val_loss.index(min(log_val_loss))))
-print('test_loss    : %g\n'%(test_loss))
-print('#epochs      : %d\n'%(len(log_acc)))
+        f.write('#################\nresults:\n')
+        f.write('*     #epoch :', ind+1, '\n')
+        f.write('*  train acc :', log_acc[ind], '\n')
+        f.write('*    val acc :', log_val_acc[ind], '\n')
+        f.write('* train loss :', log_loss[ind], '\n')
+        f.write('*   val loss :', log_val_loss[ind], '\n')
 
 ind = len(log_acc) - EARLY_STOP - 1
-print('results:\n %s\n#epochs: %d\n'%(archi ,ind+1))
-print('%g\t%g\t%g\t%g\t%g\t%g\n'%(log_acc[ind], log_val_acc[ind], test_acc,
-                                                log_loss[ind], log_val_loss[ind], test_loss))
-
-#print('eval_loss: %g, eval_acc: %g\n'%(eval_loss, eval_acc))
+print('#################\nresults:\n')
+print('*     #epoch :', ind+1)
+print('*  train acc :', log_acc[ind])
+print('*    val acc :', log_val_acc[ind])
+print('* train loss :', log_loss[ind])
+print('*   val loss :', log_val_loss[ind])
