@@ -103,7 +103,7 @@ partition = data_meta[0]
 labels = data_meta[0]['labels']
 
 # Generators
-training_generator = DataGenerator(partition['train'], labels)
+training_generator = DataGenerator(partition['train'], labels, shuffle=True)
 validation_generator = DataGenerator(partition['val'], labels)
 
 '''train model'''
@@ -128,12 +128,12 @@ with open(log_filename, 'at') as f:
                                         log_loss[i], log_val_loss[i]))
 
         ind = len(log_acc) - EARLY_STOP - 1
-        f.write('#################\nresults:\n')
-        f.write('*     #epoch :', ind+1, '\n')
-        f.write('*  train acc :', log_acc[ind], '\n')
-        f.write('*    val acc :', log_val_acc[ind], '\n')
-        f.write('* train loss :', log_loss[ind], '\n')
-        f.write('*   val loss :', log_val_loss[ind], '\n')
+        f.write('#################\nresults:')
+        f.write('\n*     #epoch :', ind+1)
+        f.write('\n*  train acc :', log_acc[ind])
+        f.write('\n*    val acc :', log_val_acc[ind])
+        f.write('\n* train loss :', log_loss[ind])
+        f.write('\n*   val loss :', log_val_loss[ind])
 
 ind = len(log_acc) - EARLY_STOP - 1
 print('#################\nresults:\n')
