@@ -96,13 +96,15 @@ else:
 #         return
 
 # load data
+from DataGenerator import DataGenerator
 # Datasets
-partition = np.load('data_meta.npy')
-labels = np.load('labels.npy')
+data_meta = np.load('data/meta.npy')
+partition = data_meta[0]
+labels = data_meta[0]['labels']
 
 # Generators
-training_generator = DataGenerator(partition['train'], labels, **params)
-validation_generator = DataGenerator(partition['validation'], labels, **params)
+training_generator = DataGenerator(partition['train'], labels)
+validation_generator = DataGenerator(partition['val'], labels)
 
 '''train model'''
 history = model.fit_generator(generator=training_generator,

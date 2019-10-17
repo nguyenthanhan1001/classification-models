@@ -61,14 +61,17 @@ model.load_weights(weigths_path)
 ''' evaluate '''
 
 # load data
+from DataGenerator import DataGenerator
+
 # Datasets
-partition = np.load('data_meta.npy')
-labels = np.load('labels.npy')
+data_meta = np.load('data/meta.npy')
+partition = data_meta[0]
+labels = data_meta[0]['labels']
 
 # Generators
-training_generator = DataGenerator(partition['train'], labels, **params)
-validation_generator = DataGenerator(partition['validation'], labels, **params)
-test_generator = DataGenerator(partition['test'], labels, **params)
+training_generator = DataGenerator(partition['train'], labels,)
+validation_generator = DataGenerator(partition['val'], labels,s)
+test_generator = DataGenerator(partition['test'], labels,)
 
 print 'train:', model.evaluate_generator(training_generator, workers=6, use_multiprocessing=True, verbose=1)
 print 'val:', model.evaluate_generator(validation_generator, workers=6, use_multiprocessing=True, verbose=1)
