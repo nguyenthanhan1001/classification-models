@@ -15,7 +15,8 @@ import keras
 
 '''parse arguments'''
 
-archi = sys.argv[1]
+out_dir = sys.argv[1]
+archi = sys.argv[2]
 image_size = (240, 320)
 num_class = 2
 weigths_path = sys.argv[3]
@@ -69,14 +70,20 @@ partition = data_meta[0]
 labels = data_meta[0]['labels']
 
 # Generators
-training_generator = DataGenerator(partition['train'], labels,)
-validation_generator = DataGenerator(partition['val'], labels,s)
+# training_generator = DataGenerator(partition['train'], labels,)
+# validation_generator = DataGenerator(partition['val'], labels)
 test_generator = DataGenerator(partition['test'], labels,)
 
-print 'train:', model.evaluate_generator(training_generator, workers=6, use_multiprocessing=True, verbose=1)
-print 'val:', model.evaluate_generator(validation_generator, workers=6, use_multiprocessing=True, verbose=1)
-print 'test:', model.evaluate_generator(test_generator, workers=6, use_multiprocessing=True, verbose=1)
+#print 'train:', model.evaluate_generator(training_generator, workers=6, use_multiprocessing=True, verbose=1)
+# print 'val:', model.evaluate_generator(validation_generator, workers=6, use_multiprocessing=True, verbose=1)
+# print 'test:', model.evaluate_generator(test_generator, workers=6, use_multiprocessing=True, verbose=1)
 
+lbl = []
+for i, ID in enumerate(test_generator.list_IDs):
+    vid = ID.split('/')[-1].split('_')[0]
+    lbl.append(test_generator.labels[vid])
+
+np.save(out_dir + '/labels_test', lbl)
 
 pre = model.predict_generator(test_generator, workers=6, use_multiprocessing=True, verbose=1)
 np.save(out_dir + '/predictions_test', pre)
